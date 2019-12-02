@@ -20,3 +20,12 @@ Chromosome::Chromosome(std::string const &path) {
     assignment[family_id] = day;
   }
 }
+
+
+void Chromosome::Save(std::string const &path) const {
+  std::ofstream file{path};
+  file << "family_id,assigned_day\n";
+  for (int i = 0; i < num_families; ++i)
+    file << i << ',' << assignment[i] << '\n';
+  file.close();
+}

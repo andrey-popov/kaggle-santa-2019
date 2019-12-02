@@ -5,7 +5,7 @@ LDFLAGS :=
 
 all: optimize
 
-optimize: optimize.o Chromosome.o Loss.o
+optimize: optimize.o Chromosome.o Loss.o Pool.o
 	g++ $^ $(CFLAGS) $(LDFLAGS) -o $@
 
 %.o: %.cc

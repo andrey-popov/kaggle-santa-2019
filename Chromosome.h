@@ -6,8 +6,13 @@
 
 
 struct Chromosome {
+  Chromosome() = default;
+
   /// Construct from a CSV file
   Chromosome(std::string const &path);
+
+  /// Save chromosome in a CSV file
+  void Save(std::string const &path) const;
 
   /// Number of days for visits
   static constexpr int num_days = 100;
@@ -21,6 +26,9 @@ struct Chromosome {
    * Days are indexed starting from 1.
    */
   std::array<int, num_families> assignment;
+
+  /// Loss associated with this chromosome
+  double loss;
 };
 
 #endif  // SANTA_WORKSHOP_CHROMOSOME_H_
