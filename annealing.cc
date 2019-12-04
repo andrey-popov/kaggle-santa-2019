@@ -16,25 +16,36 @@ int main() {
   Chromosome chromosome;
   for (int i = 0; i < Chromosome::num_families; ++i)
     chromosome.assignment[i] = day_distr(rng_engine);
+  // Chromosome chromosome{"best.csv"};
   double prev_loss = loss_calc(chromosome);
 
   int64_t report_every = 100'000;
   int64_t num_better_accepted = 0, num_worse_accepted = 0;
   for (int64_t iteration = 0; iteration < 10'000'000; ++iteration) {
-    double const temperature = 1000. * std::exp(-iteration / 1e6);
-    int const family_id = family_distr(rng_engine);
-    int const original_day = chromosome.assignment[family_id];
-    chromosome.assignment[family_id] = day_distr(rng_engine);
+    double const temperature = 1000. * std::exp(-iteration / 2e6);
+    Chromosome proposal{chromosome};
 
-    double const loss = loss_calc(chromosome);
+    if (unit_distr(rng_engine) > 0.5) {
+      // Change the day assigned to a family
+      int const family_id = family_distr(rng_engine);
+      proposal.assignment[family_id] = day_distr(rng_engine);
+    } else {
+      // Swap days assigned to two families
+      int const family_id1 = family_distr(rng_engine);
+      int const family_id2 = family_distr(rng_engine);
+      int const day = proposal.assignment[family_id1];
+      proposal.assignment[family_id1] = proposal.assignment[family_id2];
+      proposal.assignment[family_id2] = day;
+    }
+
+    double const loss = loss_calc(proposal);
     if (loss < prev_loss) {
+      chromosome = proposal;
       prev_loss = loss;
       ++num_better_accepted;
     } else {
-      if(unit_distr(rng_engine) > std::exp((prev_loss - loss) / temperature)) {
-        // Reject the proposal
-        chromosome.assignment[family_id] = original_day;
-      } else {
+      if(unit_distr(rng_engine) < std::exp((prev_loss - loss) / temperature)) {
+        chromosome = proposal;
         prev_loss = loss;
         ++num_worse_accepted;
       }
