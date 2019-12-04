@@ -14,6 +14,7 @@ int main() {
       << " (references is " << 10641498.403135022 << ")\n";
 
   Pool pool{50, loss};
+  std::cout << std::setprecision(0);
   for (int generation = 0; generation < 10000; ++generation) {
     pool.Evolve();
     if (generation % 100 == 0)

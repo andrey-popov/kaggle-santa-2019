@@ -7,7 +7,8 @@
 
 Pool::Pool(int capacity, Loss const &loss)
     : capacity_{capacity}, num_breeding_(capacity * 0.7),
-      tournament_size_{2}, num_elites_{1}, mutation_probability_{1e-3},
+      tournament_size_{2}, num_elites_{1},
+      mutation_probability_{1e-3}, mutation_loss_scale_{1e3},
       loss_{loss}, rng_engine_{717} {
   Populate(capacity);
 }
@@ -69,12 +70,24 @@ std::vector<Chromosome> Pool::GenerateChildren(
 Chromosome Pool::Mutate(Chromosome const &source) const {
   Chromosome mutated{source};
   std::uniform_real_distribution<> uniform;
-  std::uniform_int_distribution<> day_distr{1, Chromosome::num_days};
-  for (int i = 0; i < Chromosome::num_families; ++i) {
+  
+  for (int igene = 0; igene < Chromosome::num_families; ++igene) {
     if (uniform(rng_engine_) > mutation_probability_)
       continue;
-    mutated.assignment[i] = day_distr(rng_engine_);
+
+    std::array<double, Chromosome::num_days> losses, weights;
+    for (int day = 1; day <= Chromosome::num_days; ++day) {
+      mutated.assignment[igene] = day - 1;
+      losses[day - 1] = loss_(mutated);
+    }
+    double const min_loss = *std::min_element(losses.begin(), losses.end());
+    for (int day = 1; day <= Chromosome::num_days; ++day)
+      weights[day - 1] = std::exp(
+          -(losses[day - 1] - min_loss) / mutation_loss_scale_);
+    std::discrete_distribution<> day_distr{weights.begin(), weights.end()};
+    mutated.assignment[igene] = day_distr(rng_engine_) + 1;
   }
+
   return mutated;
 }
 

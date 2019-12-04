@@ -44,6 +44,7 @@ class Pool {
   int tournament_size_;
   int num_elites_;
   double mutation_probability_;
+  double mutation_loss_scale_;
 
   Loss const &loss_;
   mutable std::mt19937 rng_engine_;

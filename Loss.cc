@@ -9,6 +9,37 @@
 #include <stdexcept>
 
 
+int64_t Loss::Family::PreferenceLoss(int day) const {
+  auto const choice = std::find(
+      preferences.begin(), preferences.end(), day);
+  int const choice_rank = choice - preferences.begin();
+  switch (choice_rank) {
+    case 0:
+      return 0;
+    case 1:
+      return 50;
+    case 2:
+      return 50 + 9 * size;
+    case 3:
+      return 100 + 9 * size;
+    case 4:
+      return 200 + 9 * size;
+    case 5:
+      return 200 + 18 * size;
+    case 6:
+      return 300 + 18 * size;
+    case 7:
+      return 300 + 36 * size;
+    case 8:
+      return 400 + 36 * size;
+    case 9:
+      return 500 + (36 + 199) * size;
+    default:
+      return 500 + (36 + 398) * size;
+  }
+}
+
+
 Loss::Loss(std::string const &path) {
   std::ifstream file{path};
   std::string line;
@@ -63,45 +94,86 @@ double Loss::operator()(Chromosome const &chromosome) const {
   }
 
   int64_t preference_loss = 0;
-  for (auto const &family : families_) {
-    auto const choice = std::find(
-        family.preferences.begin(), family.preferences.end(),
-        chromosome.assignment[family.id]);
-    int const choice_rank = choice - family.preferences.begin();
-    switch (choice_rank) {
-      case 0:
-        break;
-      case 1:
-        preference_loss += 50;
-        break;
-      case 2:
-        preference_loss += 50 + 9 * family.size;
-        break;
-      case 3:
-        preference_loss += 100 + 9 * family.size;
-        break;
-      case 4:
-        preference_loss += 200 + 9 * family.size;
-        break;
-      case 5:
-        preference_loss += 200 + 18 * family.size;
-        break;
-      case 6:
-        preference_loss += 300 + 18 * family.size;
-        break;
-      case 7:
-        preference_loss += 300 + 36 * family.size;
-        break;
-      case 8:
-        preference_loss += 400 + 36 * family.size;
-        break;
-      case 9:
-        preference_loss += 500 + (36 + 199) * family.size;
-        break;
-      default:
-        preference_loss += 500 + (36 + 398) * family.size;
-    }
-  }
+  for (auto const &family : families_)
+    preference_loss += family.PreferenceLoss(chromosome.assignment[family.id]);
 
   return accounting_loss + preference_loss;
+}
+
+
+std::array<double, Chromosome::num_days> Loss::ScanDays(
+    Chromosome const &chromosome, int family_id) const {
+  std::array<double, Chromosome::num_days> losses;
+
+  // Compute baseline without the specified family
+  std::array<int, Chromosome::num_days> base_occupancy;
+  std::fill(base_occupancy.begin(), base_occupancy.end(), 0);
+  for (auto const &family : families_) {
+    if (family.id == family_id)
+      continue;
+    base_occupancy[chromosome.assignment[family.id] - 1] += family.size;
+  }
+
+  int num_underpopulated_days = 0;
+  int underpopulated_day = -1;
+  bool overpopulated_day_found = false;
+  for (int day = 1; day <= Chromosome::num_days; ++day) {
+    if (base_occupancy[day - 1] < 125) {
+      ++num_underpopulated_days;
+      underpopulated_day = day;
+    }
+    else if (base_occupancy[day - 1] > 300) {
+      overpopulated_day_found = true;
+      break;
+    }
+  }
+  if (num_underpopulated_days > 1 or overpopulated_day_found) {
+    // Whichever day the family is assigned, the occupancy constraints cannot be
+    // satisfied
+    std::fill(losses.begin(), losses.end(),
+              std::numeric_limits<double>::infinity());
+    return losses;
+  }
+
+  double base_accounting_loss = 0.;
+  int n_prev = base_occupancy.back();
+  for (int i = base_occupancy.size() - 1; i >= 0; --i) {
+    int const n = base_occupancy[i];
+    base_accounting_loss += (n - 125) / 400.
+        * std::pow(n, 0.5 + std::abs(n - n_prev) / 50.);
+    n_prev = n;
+  }
+
+  int64_t base_preference_loss = 0;
+  for (auto const &family : families_) {
+    if (family.id == family_id)
+      continue;
+    base_preference_loss += family.PreferenceLoss(
+      chromosome.assignment[family.id]);
+  }
+
+  for (int day = 1; day <= Chromosome::num_days; ++day) {
+    if (num_underpopulated_days > 0 and day != underpopulated_day) {
+      // If there is an underpopulated day, there is no point in checking others
+      losses[day - 1] = std::numeric_limits<double>::infinity();
+      continue;
+    }
+    int const n = base_occupancy[day - 1] + families_[family_id].size;
+    if (n < 125 or n > 300) {
+      losses[day - 1] = std::numeric_limits<double>::infinity();
+      continue;
+    }
+
+    // In accounting loss, remove the previously included parts for this day
+    // computed with the baseline occupancy and replace them with the parts
+    // computed wih the updated occupancy
+    double accounting_loss = base_accounting_loss;
+    //...
+
+    int const preference_loss = base_preference_loss
+        + families_[family_id].PreferenceLoss(day);
+    losses[day - 1] = accounting_loss + preference_loss;
+  }
+
+  return losses;
 }
