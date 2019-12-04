@@ -18,6 +18,8 @@ int main() {
     chromosome.assignment[i] = day_distr(rng_engine);
   double prev_loss = loss_calc(chromosome);
 
+  int64_t report_every = 100'000;
+  int64_t num_better_accepted = 0, num_worse_accepted = 0;
   for (int64_t iteration = 0; iteration < 10'000'000; ++iteration) {
     double const temperature = 1000. * std::exp(-iteration / 1e6);
     int const family_id = family_distr(rng_engine);
@@ -25,16 +27,26 @@ int main() {
     chromosome.assignment[family_id] = day_distr(rng_engine);
 
     double const loss = loss_calc(chromosome);
-    if (loss > prev_loss and
-        unit_distr(rng_engine) > std::exp((prev_loss - loss) / temperature)) {
-      // Reject the proposal
-      chromosome.assignment[family_id] = original_day;
-    } else
+    if (loss < prev_loss) {
       prev_loss = loss;
+      ++num_better_accepted;
+    } else {
+      if(unit_distr(rng_engine) > std::exp((prev_loss - loss) / temperature)) {
+        // Reject the proposal
+        chromosome.assignment[family_id] = original_day;
+      } else
+        prev_loss = loss;
+        ++num_worse_accepted;
+    }
 
-    if (iteration % 100'000 == 0)
-      std::cout << "Loss at iteraction " << iteration << ": "
-          << std::lround(prev_loss) << std::endl;
+    if (iteration % report_every == 0) {
+      std::cout << "Loss at iteration " << iteration << ": "
+          << std::lround(prev_loss)
+          << ", frac. downhill: " << num_better_accepted / double(report_every)
+          << ", frac. uphill: " << num_worse_accepted / double(report_every)
+          << std::endl;
+      num_better_accepted = num_worse_accepted = 0;
+    }
   }
 
   std::cout << "Best loss achieved: " << prev_loss << '\n';
