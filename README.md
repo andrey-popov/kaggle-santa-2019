@@ -5,4 +5,4 @@
 
 ## Simulated annealing
 
-It seems useful to restart the annealing resetting the temperature to 10. This allows to better explore the vicinity of the current point.
+It seems useful to restart the annealing resetting the temperature to 5 or 10. This allows to better explore the vicinity of the current point.

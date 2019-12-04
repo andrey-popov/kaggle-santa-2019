@@ -25,17 +25,27 @@ int main() {
     double const temperature = 1000. * std::exp(-iteration / 2e6);
     Chromosome proposal{chromosome};
 
-    if (unit_distr(rng_engine) > 0.5) {
+    double const r = unit_distr(rng_engine);
+    if (r > 0.67) {
       // Change the day assigned to a family
       int const family_id = family_distr(rng_engine);
       proposal.assignment[family_id] = day_distr(rng_engine);
-    } else {
+    } else if (r > 0.33) {
       // Swap days assigned to two families
       int const family_id1 = family_distr(rng_engine);
       int const family_id2 = family_distr(rng_engine);
       int const day = proposal.assignment[family_id1];
       proposal.assignment[family_id1] = proposal.assignment[family_id2];
       proposal.assignment[family_id2] = day;
+    } else {
+      // Shuffle days of three families
+      int const family_id1 = family_distr(rng_engine);
+      int const family_id2 = family_distr(rng_engine);
+      int const family_id3 = family_distr(rng_engine);
+      int const day = proposal.assignment[family_id1];
+      proposal.assignment[family_id1] = proposal.assignment[family_id2];
+      proposal.assignment[family_id2] = proposal.assignment[family_id3];
+      proposal.assignment[family_id3] = day;
     }
 
     double const loss = loss_calc(proposal);
