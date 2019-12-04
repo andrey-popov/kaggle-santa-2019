@@ -34,14 +34,15 @@ int main() {
       if(unit_distr(rng_engine) > std::exp((prev_loss - loss) / temperature)) {
         // Reject the proposal
         chromosome.assignment[family_id] = original_day;
-      } else
+      } else {
         prev_loss = loss;
         ++num_worse_accepted;
+      }
     }
 
     if (iteration % report_every == 0) {
-      std::cout << "Loss at iteration " << iteration << ": "
-          << std::lround(prev_loss)
+      std::cout << "Iteration " << iteration << ", temperature " << temperature
+          << "\n  Loss: " << std::lround(prev_loss)
           << ", frac. downhill: " << num_better_accepted / double(report_every)
           << ", frac. uphill: " << num_worse_accepted / double(report_every)
           << std::endl;
