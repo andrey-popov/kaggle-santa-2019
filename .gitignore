@@ -1,4 +1,5 @@
 *.o
 *.csv
+annealing
 optimize
 

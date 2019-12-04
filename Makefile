@@ -3,7 +3,10 @@ OPFLAGS := -O2
 CFLAGS := -Wall -Wextra -std=c++17 $(INCLUDE) $(OPFLAGS)
 LDFLAGS := 
 
-all: optimize
+all: annealing optimize
+
+annealing: annealing.o Chromosome.o Loss.o
+	g++ $^ $(CFLAGS) $(LDFLAGS) -o $@
 
 optimize: optimize.o Chromosome.o Loss.o Pool.o
 	g++ $^ $(CFLAGS) $(LDFLAGS) -o $@
