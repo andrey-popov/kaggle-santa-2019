@@ -18,3 +18,6 @@ target_link_libraries(optimize PRIVATE optimize_lib)
 
 add_executable(annealing src/annealing.cc)
 target_link_libraries(annealing PRIVATE optimize_lib)
+
+add_executable(test src/test.cc)
+target_link_libraries(test PRIVATE optimize_lib)

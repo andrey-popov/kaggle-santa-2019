@@ -10,7 +10,7 @@
 
 class Pool {
  public:
-  Pool(int capacity, Loss const &loss);
+  Pool(int capacity);
 
   double BestLoss() const {
     return population_[0].loss;
@@ -45,7 +45,7 @@ class Pool {
   int num_elites_;
   double mutation_probability_;
 
-  Loss const &loss_;
+  Loss const loss_;
   mutable std::mt19937 rng_engine_;
 
   /**

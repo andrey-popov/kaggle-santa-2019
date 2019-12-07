@@ -5,11 +5,11 @@
 #include <set>
 
 
-Pool::Pool(int capacity, Loss const &loss)
+Pool::Pool(int capacity)
     : capacity_{capacity}, num_breeding_(capacity * 0.7),
       tournament_size_{2}, num_elites_{1},
       mutation_probability_{1e-3},
-      loss_{loss}, rng_engine_{717} {
+      loss_{"family_data.csv"}, rng_engine_{717} {
   Populate(capacity);
 }
 
