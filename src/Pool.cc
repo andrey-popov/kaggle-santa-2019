@@ -14,6 +14,12 @@ Pool::Pool(int capacity)
 }
 
 
+double Pool::GetLoss(double quantile) const {
+  int const i = std::lround(quantile * population_.size());
+  return population_.at(i).loss;
+}
+
+
 void Pool::Evolve() {
   std::vector<Chromosome> new_population;
   new_population.reserve(capacity_);

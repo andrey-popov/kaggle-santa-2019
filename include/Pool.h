@@ -12,9 +12,8 @@ class Pool {
  public:
   Pool(int capacity);
 
-  double BestLoss() const {
-    return population_[0].loss;
-  }
+  /// Returns loss at the given quantile of the population
+  double GetLoss(double quantile) const;
 
   std::vector<Chromosome> const &GetPopulation() const {
     return population_;
