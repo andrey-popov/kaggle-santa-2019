@@ -8,7 +8,6 @@
 Pool::Pool(int capacity)
     : capacity_{capacity}, num_breeding_(capacity * 0.7),
       tournament_size_{2}, num_elites_{1},
-      mutation_probability_{1e-3},
       loss_{"family_data.csv"}, rng_engine_{717} {
   Populate(capacity);
 }
@@ -75,16 +74,46 @@ std::vector<Chromosome> Pool::GenerateChildren(
 
 Chromosome Pool::Mutate(Chromosome const &source) const {
   Chromosome mutated{source};
-  std::uniform_real_distribution<> unit_distr;
+  int const num_strategies = 5;
+  std::uniform_int_distribution<> strategy_distr{0, num_strategies - 1};
   std::uniform_int_distribution<> day_distr{1, Chromosome::num_days};
-  
-  for (int igene = 0; igene < Chromosome::num_families; ++igene) {
-    if (unit_distr(rng_engine_) > mutation_probability_)
-      continue;
+  std::uniform_int_distribution<> family_distr{0, Chromosome::num_families - 1};
 
-    mutated.assignment[igene] = day_distr(rng_engine_);
+  switch (strategy_distr(rng_engine_)) {
+    case 0:
+      // Leave the source unchanged
+      break;
+    case 1: {
+      // For one family, set the assigned day to one of its preference days
+      int const f = family_distr(rng_engine_);
+      std::uniform_int_distribution<> pref_distr{0, 9};
+      mutated.assignment[f] = loss_.GetPreferences(f)[pref_distr(rng_engine_)];
+      break;
+    }
+    case 2:
+      // Randomly change the day assigned to one family
+      mutated.assignment[family_distr(rng_engine_)] = day_distr(rng_engine_);
+      break;
+    case 3: {
+      // Swap days assigned to two families
+      int const f1 = family_distr(rng_engine_);
+      int const f2 = family_distr(rng_engine_);
+      std::swap(mutated.assignment[f1], mutated.assignment[f2]);
+      break;
+    }
+    case 4: {
+      // Shuffle days assigned to a triplet of families
+      int const f1 = family_distr(rng_engine_);
+      int const f2 = family_distr(rng_engine_);
+      int const f3 = family_distr(rng_engine_);
+      int const day = mutated.assignment[f1];
+      mutated.assignment[f1] = mutated.assignment[f2];
+      mutated.assignment[f2] = mutated.assignment[f3];
+      mutated.assignment[f3] = day;
+      break;
+    }
   }
-
+  
   return mutated;
 }
 

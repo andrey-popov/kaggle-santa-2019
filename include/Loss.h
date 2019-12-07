@@ -11,6 +11,11 @@
 class Loss {
  public:
   Loss(std::string const &path);
+
+  std::array<int, 10> const &GetPreferences(int family) const {
+    return families_[family].preferences;
+  }
+
   double operator()(Chromosome const &chormosome) const;
   std::array<double, Chromosome::num_days> ScanDays(
       Chromosome const &chromosome, int family_id) const;
