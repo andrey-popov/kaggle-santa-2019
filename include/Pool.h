@@ -2,6 +2,7 @@
 #define SANTA_WORKSHOP_POOL_H_
 
 #include <random>
+#include <string>
 #include <vector>
 
 #include <Chromosome.h>
@@ -22,15 +23,25 @@ class Pool {
   /// Performs one generation
   void Evolve();
 
+  /// Loads population from a CSV file
+  void Load(std::string const &path);
+
+  /// Generate initial popolation
+  void Populate();
+
+  /**
+   * \brief Saves the population in a CSV file
+   *
+   * Each line describes one phenotype from the population.
+   */
+  void Save(std::string const &path) const;
+
  private:
   Chromosome CrossOver(Chromosome const &parent1,
                        Chromosome const &parent2) const;
   std::vector<Chromosome> GenerateChildren(
       std::vector<Chromosome const *> const &breeding_pool) const;
   Chromosome Mutate(Chromosome const &source) const;
-
-  /// Generate initial popolation
-  void Populate(int population_size);
 
   std::vector<Chromosome const *> SelectParents();
 

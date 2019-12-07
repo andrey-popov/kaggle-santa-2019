@@ -1,13 +1,27 @@
 #include <cmath>
 #include <iostream>
+#include <string>
 
 #include <Chromosome.h>
 #include <Loss.h>
 #include <Pool.h>
 
 
-int main() {
+int main(int argc, char const **argv) {
   Pool pool{50};
+
+  if (argc > 1) {
+    std::string const path{argv[1]};
+    std::cout << "Loading population from file \"" << path << "\".\n";
+    pool.Load(path);
+  } else {
+    std::cout << "Generating initial population...\n";
+    pool.Populate();
+    std::string const path{"snapshots/start.csv"};
+    pool.Save(path);
+    std::cout << "Initial population saved to file \"" << path << "\".\n";
+  }
+
   for (int generation = 0; generation < 5'000; ++generation) {
     pool.Evolve();
     if (generation % 100 == 0) {

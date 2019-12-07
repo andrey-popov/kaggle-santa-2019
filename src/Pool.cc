@@ -2,14 +2,16 @@
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <set>
+#include <sstream>
+#include <stdexcept>
 
 
 Pool::Pool(int capacity)
     : capacity_{capacity}, num_breeding_(capacity * 0.7),
       tournament_size_{2}, num_elites_{1},
       loss_{"family_data.csv"}, rng_engine_{717} {
-  Populate(capacity);
 }
 
 
@@ -34,6 +36,90 @@ void Pool::Evolve() {
   std::sort(new_population.begin(), new_population.end(),
             [](auto const &c1, auto const &c2){return c1.loss < c2.loss;});
   population_ = new_population;
+}
+
+
+void Pool::Load(std::string const &path) {
+  std::ifstream file{path};
+  std::string line;
+  while (std::getline(file, line)) {
+    Chromosome phenotype;
+    int f = 0;
+    std::string word;
+    std::istringstream line_stream{line};
+    while (std::getline(line_stream, word, ',')) {
+      phenotype.assignment[f] = std::stoi(word);
+      ++f;
+    }
+    phenotype.loss = loss_(phenotype);
+    population_.emplace_back(phenotype);
+  }
+  file.close();
+
+  if (int(population_.size()) != capacity_)
+    throw std::runtime_error{"Read an unexpected number of phenotypes."};
+  std::sort(population_.begin(), population_.end(),
+            [](auto const &c1, auto const &c2){return c1.loss < c2.loss;});
+}
+
+
+void Pool::Populate() {
+  std::uniform_int_distribution<> day_distr{1, Chromosome::num_days};
+  for (int n = 0; n < capacity_; ++n) {
+    // Generate a random chromosome as an initial guess
+    Chromosome candidate;
+    while (true) {
+      for (int ifamily = 0; ifamily < Chromosome::num_families; ++ifamily)
+        candidate.assignment[ifamily] = day_distr(rng_engine_);
+      
+      candidate.loss = loss_(candidate);
+      if (std::isfinite(candidate.loss))
+        break;
+    }
+
+    // For each family, try the preferred days and see if this improves the
+    // loss. Iterate over families in a random order.
+    std::array<int, Chromosome::num_families> family_indices;
+    for (int i = 0; i < Chromosome::num_families; ++i)
+      family_indices[i] = i;
+    std::shuffle(family_indices.begin(), family_indices.end(), rng_engine_);
+
+    for (auto const &f : family_indices) {
+      int best_day = candidate.assignment[f];
+      double min_loss = candidate.loss;
+      auto const &preferences = loss_.GetPreferences(f);
+
+      for (auto const &day : preferences) {
+        candidate.assignment[f] = day;
+        double const loss = loss_(candidate);
+        if (loss < min_loss) {
+          best_day = day;
+          min_loss = loss;
+        }
+      }
+
+      candidate.assignment[f] = best_day;
+      candidate.loss = min_loss;
+    }
+    
+    population_.emplace_back(candidate);
+  }
+
+  std::sort(population_.begin(), population_.end(),
+            [](auto const &c1, auto const &c2){return c1.loss < c2.loss;});
+}
+
+
+void Pool::Save(std::string const &path) const {
+  std::ofstream file{path};
+  for (auto const &phenotype : population_) {
+    file << phenotype.assignment[0];
+    for (int f = 1; f < Chromosome::num_families; ++f)
+      file << "," << phenotype.assignment[f];
+    file << '\n';
+  }
+
+  file.close();
 }
 
 
@@ -115,53 +201,6 @@ Chromosome Pool::Mutate(Chromosome const &source) const {
   }
   
   return mutated;
-}
-
-
-void Pool::Populate(int population_size) {
-  std::uniform_int_distribution<> day_distr{1, Chromosome::num_days};
-  for (int n = 0; n < population_size; ++n) {
-    // Generate a random chromosome as an initial guess
-    Chromosome candidate;
-    while (true) {
-      for (int ifamily = 0; ifamily < Chromosome::num_families; ++ifamily)
-        candidate.assignment[ifamily] = day_distr(rng_engine_);
-      
-      candidate.loss = loss_(candidate);
-      if (std::isfinite(candidate.loss))
-        break;
-    }
-
-    // For each family, try the preferred days and see if this improves the
-    // loss. Iterate over families in a random order.
-    std::array<int, Chromosome::num_families> family_indices;
-    for (int i = 0; i < Chromosome::num_families; ++i)
-      family_indices[i] = i;
-    std::shuffle(family_indices.begin(), family_indices.end(), rng_engine_);
-
-    for (auto const &f : family_indices) {
-      int best_day = candidate.assignment[f];
-      double min_loss = candidate.loss;
-      auto const &preferences = loss_.GetPreferences(f);
-
-      for (auto const &day : preferences) {
-        candidate.assignment[f] = day;
-        double const loss = loss_(candidate);
-        if (loss < min_loss) {
-          best_day = day;
-          min_loss = loss;
-        }
-      }
-
-      candidate.assignment[f] = best_day;
-      candidate.loss = min_loss;
-    }
-    
-    population_.emplace_back(candidate);
-  }
-
-  std::sort(population_.begin(), population_.end(),
-            [](auto const &c1, auto const &c2){return c1.loss < c2.loss;});
 }
 
 
