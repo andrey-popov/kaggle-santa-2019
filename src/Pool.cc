@@ -121,17 +121,43 @@ Chromosome Pool::Mutate(Chromosome const &source) const {
 void Pool::Populate(int population_size) {
   std::uniform_int_distribution<> day_distr{1, Chromosome::num_days};
   for (int n = 0; n < population_size; ++n) {
+    // Generate a random chromosome as an initial guess
+    Chromosome candidate;
     while (true) {
-      Chromosome candidate;
       for (int ifamily = 0; ifamily < Chromosome::num_families; ++ifamily)
         candidate.assignment[ifamily] = day_distr(rng_engine_);
       
       candidate.loss = loss_(candidate);
-      if (std::isfinite(candidate.loss)) {
-        population_.emplace_back(candidate);
+      if (std::isfinite(candidate.loss))
         break;
-      }
     }
+
+    // For each family, try the preferred days and see if this improves the
+    // loss. Iterate over families in a random order.
+    std::array<int, Chromosome::num_families> family_indices;
+    for (int i = 0; i < Chromosome::num_families; ++i)
+      family_indices[i] = i;
+    std::shuffle(family_indices.begin(), family_indices.end(), rng_engine_);
+
+    for (auto const &f : family_indices) {
+      int best_day = candidate.assignment[f];
+      double min_loss = candidate.loss;
+      auto const &preferences = loss_.GetPreferences(f);
+
+      for (auto const &day : preferences) {
+        candidate.assignment[f] = day;
+        double const loss = loss_(candidate);
+        if (loss < min_loss) {
+          best_day = day;
+          min_loss = loss;
+        }
+      }
+
+      candidate.assignment[f] = best_day;
+      candidate.loss = min_loss;
+    }
+    
+    population_.emplace_back(candidate);
   }
 
   std::sort(population_.begin(), population_.end(),
