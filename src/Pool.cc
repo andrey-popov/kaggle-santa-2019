@@ -32,14 +32,10 @@ void Pool::Evolve() {
     auto [child1, child2] = CrossOver(*parent1, *parent2);
 
     for (auto const &child : {child1, child2}) {
-      while (true) {
-        Chromosome mutant{Mutate(child)};
-        mutant.loss = loss_(mutant);
-        if (std::isfinite(mutant.loss)) {
-          new_population.emplace_back(mutant);
-          break;
-        }
-      }
+      Chromosome mutant{Mutate(child)};
+      mutant.loss = loss_(mutant);
+      if (std::isfinite(mutant.loss))
+        new_population.emplace_back(mutant);
     }
   }
 
