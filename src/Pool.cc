@@ -10,7 +10,7 @@
 
 Pool::Pool(int capacity)
     : capacity_{capacity},
-      tournament_size_{2}, crossover_prob{1.},
+      tournament_size_{2}, crossover_prob{0.5},
       loss_{"family_data.csv"}, rng_engine_{717} {
 }
 
