@@ -28,7 +28,8 @@ int main(int argc, char const **argv) {
   int64_t const timestamp = std::chrono::duration_cast<std::chrono::seconds>(
       std::chrono::system_clock::now().time_since_epoch()).count()
       - 1575800000;
-  for (int generation = 0; generation < 5'000; ++generation) {
+  std::cout << "Timestamp of this run: " << timestamp << std::endl;
+  for (int generation = 0; generation <= 5'000; ++generation) {
     pool.Evolve();
     if (generation % 100 == 0) {
       double const best_loss = pool.GetLoss(0.);
