@@ -10,7 +10,7 @@
 
 Pool::Pool(int capacity)
     : capacity_{capacity},
-      tournament_size_{2}, crossover_prob{0.5},
+      tournament_size_{2}, crossover_prob{0.5}, mutation_prob{1.},
       loss_{"family_data.csv"}, rng_engine_{717} {
 }
 
@@ -169,35 +169,36 @@ std::tuple<Chromosome, Chromosome> Pool::CrossOver(
 
 
 Chromosome Pool::Mutate(Chromosome const &source) const {
+  std::uniform_real_distribution unit_distr;
+  if (unit_distr(rng_engine_) > mutation_prob)
+    return source;
+
   Chromosome mutated{source};
-  int const num_strategies = 5;
+  int const num_strategies = 4;
   std::uniform_int_distribution<> strategy_distr{0, num_strategies - 1};
   std::uniform_int_distribution<> day_distr{1, Chromosome::num_days};
   std::uniform_int_distribution<> family_distr{0, Chromosome::num_families - 1};
 
   switch (strategy_distr(rng_engine_)) {
-    case 0:
-      // Leave the source unchanged
-      break;
-    case 1: {
+    case 0: {
       // For one family, set the assigned day to one of its preference days
       int const f = family_distr(rng_engine_);
       std::uniform_int_distribution<> pref_distr{0, 9};
       mutated.assignment[f] = loss_.GetPreferences(f)[pref_distr(rng_engine_)];
       break;
     }
-    case 2:
+    case 1:
       // Randomly change the day assigned to one family
       mutated.assignment[family_distr(rng_engine_)] = day_distr(rng_engine_);
       break;
-    case 3: {
+    case 2: {
       // Swap days assigned to two families
       int const f1 = family_distr(rng_engine_);
       int const f2 = family_distr(rng_engine_);
       std::swap(mutated.assignment[f1], mutated.assignment[f2]);
       break;
     }
-    case 4: {
+    case 3: {
       // Shuffle days assigned to a triplet of families
       int const f1 = family_distr(rng_engine_);
       int const f2 = family_distr(rng_engine_);

@@ -55,6 +55,7 @@ class Pool {
 
   int tournament_size_;
   double crossover_prob;
+  double mutation_prob;
 
   Loss const loss_;
   mutable std::mt19937 rng_engine_;
