@@ -2,6 +2,7 @@
 #define SANTA_WORKSHOP_CHROMOSOME_H_
 
 #include <array>
+#include <ostream>
 #include <string>
 
 
@@ -30,5 +31,8 @@ struct Chromosome {
   /// Loss associated with this chromosome
   double loss;
 };
+
+
+std::ostream &operator<<(std::ostream &stream, Chromosome const &chromosome);
 
 #endif  // SANTA_WORKSHOP_CHROMOSOME_H_

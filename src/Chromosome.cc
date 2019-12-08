@@ -29,3 +29,11 @@ void Chromosome::Save(std::string const &path) const {
     file << i << ',' << assignment[i] << '\n';
   file.close();
 }
+
+
+std::ostream &operator<<(std::ostream &stream, Chromosome const &chromosome) {
+  stream << chromosome.assignment[0];
+  for (int i = 1; i < Chromosome::num_families; ++i)
+    stream << " " << chromosome.assignment[i];
+  return stream;
+}
