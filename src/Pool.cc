@@ -9,10 +9,12 @@
 
 
 Pool::Pool(int capacity, int tournament_size, double crossover_prob,
-           double mutation_prob)
+           double mutation_prob, double survivor_rank_scale)
     : capacity_{capacity}, tournament_size_{tournament_size},
       crossover_prob_{crossover_prob}, mutation_prob_{mutation_prob},
+      survivor_rank_scale_{survivor_rank_scale},
       loss_{"family_data.csv"}, rng_engine_{717} {
+  PreselectSurvivors();
 }
 
 
@@ -49,16 +51,14 @@ void Pool::Evolve() {
     }
   }
 
-  // Choose best phenotypes out of the union of the previous generation and the
-  // children (truncation replacement)
+  // Choose phenotypes out of the union of the previous generation and the
+  // children
   new_population.insert(new_population.end(),
                         population_.begin(), population_.end());
-  std::partial_sort(
-      new_population.begin(), new_population.begin() + capacity_,
-      new_population.end(),
-      [](auto const &c1, auto const &c2){return c1.loss < c2.loss;});
+  std::sort(new_population.begin(), new_population.end(),
+            [](auto const &c1, auto const &c2){return c1.loss < c2.loss;});
   for (int i = 0; i < capacity_; ++i)
-    population_[i] = new_population[i];
+    population_[i] = new_population[survivor_ranks_[i]];
 }
 
 
@@ -228,4 +228,27 @@ Chromosome const *Pool::SelectParent(Chromosome const *skip) {
   return *std::min_element(
       candidates.begin(), candidates.end(),
       [](auto const &c1, auto const c2){return c1->loss < c2->loss;});
+}
+
+
+void Pool::PreselectSurvivors() {
+  if (survivor_rank_scale_ <= 0.1) {
+    // Threshold selection
+    for (int r = 0; r < capacity_; ++r)
+      survivor_ranks_.emplace_back(r);
+  } else {
+    std::set<int> ranks;
+    ranks.insert(0);  // Make sure the best phenotype is always kept
+    
+    std::vector<double> weights;
+    for (int r = 0; r < 2 * capacity_; ++r)
+      weights.emplace_back(std::exp(-r / (survivor_rank_scale_ * capacity_)));
+    std::discrete_distribution<> rank_distr{weights.begin(), weights.end()};
+    while (int(ranks.size()) < capacity_)
+      ranks.insert(rank_distr(rng_engine_));
+
+    for (auto const &r : ranks)
+      survivor_ranks_.emplace_back(r);
+    std::sort(survivor_ranks_.begin(), survivor_ranks_.end());
+  }
 }

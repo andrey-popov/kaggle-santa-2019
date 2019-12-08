@@ -21,12 +21,14 @@ int main(int argc, char const **argv) {
       ("population,p", po::value<std::string>()->default_value(""),
        "File with initial population.")
       ("num,n", po::value<int>()->default_value(5000), "Number of generations.")
-      ("size,s", po::value<int>()->default_value(50), "Size of the population.")
+      ("size", po::value<int>()->default_value(50), "Size of the population.")
       ("tournament,t", po::value<int>()->default_value(2), "Tournament size.")
       ("crossover,c", po::value<double>()->default_value(0.5),
        "Cross-over probability.")
       ("mutation,m", po::value<double>()->default_value(1.),
-       "Mutation probability.");
+       "Mutation probability.")
+      ("survival,s", po::value<double>()->default_value(0.5),
+       "Relative exponential for surviving ranks.");
   po::variables_map options_map;
   po::store(po::command_line_parser(argc, argv).options(options).run(),
             options_map);
@@ -39,7 +41,8 @@ int main(int argc, char const **argv) {
   Pool pool{
       options_map["size"].as<int>(), options_map["tournament"].as<int>(),
       options_map["crossover"].as<double>(),
-      options_map["mutation"].as<double>()};
+      options_map["mutation"].as<double>(),
+      options_map["survival"].as<double>()};
 
   if (auto const path = options_map["population"].as<std::string>();
       not path.empty()) {
