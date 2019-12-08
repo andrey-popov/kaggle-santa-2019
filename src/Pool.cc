@@ -8,9 +8,10 @@
 #include <stdexcept>
 
 
-Pool::Pool(int capacity)
-    : capacity_{capacity},
-      tournament_size_{2}, crossover_prob{0.5}, mutation_prob{1.},
+Pool::Pool(int capacity, int tournament_size, double crossover_prob,
+           double mutation_prob)
+    : capacity_{capacity}, tournament_size_{tournament_size},
+      crossover_prob_{crossover_prob}, mutation_prob_{mutation_prob},
       loss_{"family_data.csv"}, rng_engine_{717} {
 }
 
@@ -148,7 +149,7 @@ void Pool::Save(std::string const &path) const {
 std::tuple<Chromosome, Chromosome> Pool::CrossOver(
     Chromosome const &parent1, Chromosome const &parent2) const {
   std::uniform_real_distribution<> unit_distr;
-  if (unit_distr(rng_engine_) > crossover_prob) {
+  if (unit_distr(rng_engine_) > crossover_prob_) {
     // Return clones of the parents
     return {parent1, parent2};
   }
@@ -170,7 +171,7 @@ std::tuple<Chromosome, Chromosome> Pool::CrossOver(
 
 Chromosome Pool::Mutate(Chromosome const &source) const {
   std::uniform_real_distribution unit_distr;
-  if (unit_distr(rng_engine_) > mutation_prob)
+  if (unit_distr(rng_engine_) > mutation_prob_)
     return source;
 
   Chromosome mutated{source};

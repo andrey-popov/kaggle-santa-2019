@@ -7,6 +7,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_compile_options(-Wall -Wextra -pedantic)
 
+find_package(Boost REQUIRED
+    COMPONENTS program_options)
+
 add_library(optimize_lib STATIC
     src/Chromosome.cc
     src/Loss.cc
@@ -14,7 +17,8 @@ add_library(optimize_lib STATIC
 target_include_directories(optimize_lib PUBLIC include)
 
 add_executable(optimize src/optimize.cc)
-target_link_libraries(optimize PRIVATE optimize_lib)
+target_link_libraries(optimize
+    PRIVATE optimize_lib Boost::program_options)
 
 add_executable(annealing src/annealing.cc)
 target_link_libraries(annealing PRIVATE optimize_lib)

@@ -11,7 +11,8 @@
 
 class Pool {
  public:
-  Pool(int capacity);
+  Pool(int capacity, int tournament_size, double crossover_prob,
+       double mutation_prob);
 
   /// Returns loss at the given quantile of the population
   double GetLoss(double quantile) const;
@@ -54,8 +55,8 @@ class Pool {
   int capacity_;
 
   int tournament_size_;
-  double crossover_prob;
-  double mutation_prob;
+  double crossover_prob_;
+  double mutation_prob_;
 
   Loss const loss_;
   mutable std::mt19937 rng_engine_;

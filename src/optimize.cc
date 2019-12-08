@@ -5,31 +5,61 @@
 #include <sstream>
 #include <string>
 
+#include <boost/program_options.hpp>
+
 #include <Chromosome.h>
 #include <Loss.h>
 #include <Pool.h>
 
+namespace po = boost::program_options;
+
 
 int main(int argc, char const **argv) {
-  Pool pool{50};
+  po::options_description options{"Supported options"};
+  options.add_options()
+      ("help,h", "Prints help message.")
+      ("population,p", po::value<std::string>()->default_value(""),
+       "File with initial population.")
+      ("num,n", po::value<int>()->default_value(5000), "Number of generations.")
+      ("size,s", po::value<int>()->default_value(50), "Size of the population.")
+      ("tournament,t", po::value<int>()->default_value(2), "Tournament size.")
+      ("crossover,c", po::value<double>()->default_value(0.5),
+       "Cross-over probability.")
+      ("mutation,m", po::value<double>()->default_value(1.),
+       "Mutation probability.");
+  po::variables_map options_map;
+  po::store(po::command_line_parser(argc, argv).options(options).run(),
+            options_map);
+  if (options_map.count("help")) {
+    std::cerr << "Usage: optimize [options]\n";
+    std::cerr << options << std::endl;
+    return EXIT_FAILURE;
+  }
 
-  if (argc > 1) {
-    std::string const path{argv[1]};
+  Pool pool{
+      options_map["size"].as<int>(), options_map["tournament"].as<int>(),
+      options_map["crossover"].as<double>(),
+      options_map["mutation"].as<double>()};
+
+  if (auto const path = options_map["population"].as<std::string>();
+      not path.empty()) {
     std::cout << "Loading population from file \"" << path << "\".\n";
     pool.Load(path);
   } else {
     std::cout << "Generating initial population...\n";
     pool.Populate();
-    std::string const path{"snapshots/start.csv"};
-    pool.Save(path);
-    std::cout << "Initial population saved to file \"" << path << "\".\n";
+    std::string const default_path{"snapshots/start.csv"};
+    pool.Save(default_path);
+    std::cout << "Initial population saved to file \"" << default_path
+        << "\".\n";
   }
 
   int64_t const timestamp = std::chrono::duration_cast<std::chrono::seconds>(
       std::chrono::system_clock::now().time_since_epoch()).count()
       - 1575800000;
   std::cout << "Timestamp of this run: " << timestamp << std::endl;
-  for (int generation = 0; generation <= 5'000; ++generation) {
+  int const num_generations = options_map["num"].as<int>();
+  for (int generation = 0; generation <= num_generations; ++generation) {
     pool.Evolve();
     if (generation % 1000 == 0) {
       double const best_loss = pool.GetLoss(0.);
