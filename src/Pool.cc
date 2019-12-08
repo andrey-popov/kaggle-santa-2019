@@ -147,7 +147,8 @@ void Pool::Save(std::string const &path) const {
 
 
 std::tuple<Chromosome, Chromosome> Pool::CrossOver(
-    Chromosome const &parent1, Chromosome const &parent2) const {
+    Chromosome const &parent1, Chromosome const &parent2,
+    int strategy) const {
   std::uniform_real_distribution<> unit_distr;
   if (unit_distr(rng_engine_) > crossover_prob_) {
     // Return clones of the parents
@@ -155,15 +156,34 @@ std::tuple<Chromosome, Chromosome> Pool::CrossOver(
   }
 
   Chromosome child1, child2;
-  std::uniform_int_distribution<> index_distr{0, Chromosome::num_families - 1};
-  int const crossover_index = index_distr(rng_engine_);
-  for (int i = 0; i < crossover_index; ++i) {
-    child1.assignment[i] = parent1.assignment[i];
-    child2.assignment[i] = parent2.assignment[i];
-  }
-  for (int i = crossover_index; i < Chromosome::num_families; ++i) {
-    child1.assignment[i] = parent2.assignment[i];
-    child2.assignment[i] = parent1.assignment[i];
+  switch (strategy) {
+    case 0: {
+      // One-point cross-over
+      std::uniform_int_distribution<> index_distr{
+          0, Chromosome::num_families - 1};
+      int const crossover_index = index_distr(rng_engine_);
+      for (int i = 0; i < crossover_index; ++i) {
+        child1.assignment[i] = parent1.assignment[i];
+        child2.assignment[i] = parent2.assignment[i];
+      }
+      for (int i = crossover_index; i < Chromosome::num_families; ++i) {
+        child1.assignment[i] = parent2.assignment[i];
+        child2.assignment[i] = parent1.assignment[i];
+      }
+      break;
+    }
+    case 1: {
+      // Universal cross-over
+      for (int i = 0; i < Chromosome::num_families; ++i) {
+        if (unit_distr(rng_engine_) < 0.5) {
+          child1.assignment[i] = parent1.assignment[i];
+          child2.assignment[i] = parent2.assignment[i];
+        } else {
+          child1.assignment[i] = parent2.assignment[i];
+          child2.assignment[i] = parent1.assignment[i];
+        }
+      }
+    }
   }
   return {child1, child2};
 }

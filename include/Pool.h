@@ -45,7 +45,8 @@ class Pool {
    * of the loss function for the children are not computed.
    */
   std::tuple<Chromosome, Chromosome> CrossOver(
-      Chromosome const &parent1, Chromosome const &parent2) const;
+      Chromosome const &parent1, Chromosome const &parent2,
+      int strategy = 1) const;
 
   Chromosome Mutate(Chromosome const &source) const;
 
