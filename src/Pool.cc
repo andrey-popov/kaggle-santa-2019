@@ -25,6 +25,10 @@ void Pool::Evolve() {
   std::vector<Chromosome> new_population;
   new_population.reserve(2 * capacity_);
 
+  std::set<uint32_t> known_hashes;
+  for (auto const &c : population_)
+    known_hashes.emplace(c.Hash());
+
   // Generate children
   while (int(new_population.size()) < capacity_) {
     Chromosome const *parent1 = SelectParent();
@@ -34,8 +38,13 @@ void Pool::Evolve() {
     for (auto const &child : {child1, child2}) {
       Chromosome mutant{Mutate(child)};
       mutant.loss = loss_(mutant);
-      if (std::isfinite(mutant.loss))
-        new_population.emplace_back(mutant);
+      if (std::isfinite(mutant.loss)) {
+        auto const hash = mutant.Hash();
+        if (known_hashes.count(hash) == 0) {
+          known_hashes.emplace(hash);
+          new_population.emplace_back(mutant);
+        }
+      }
     }
   }
 

@@ -22,6 +22,16 @@ Chromosome::Chromosome(std::string const &path) {
 }
 
 
+uint32_t Chromosome::Hash() const {
+  // Use an implementation from Boost
+  // [1] https://stackoverflow.com/a/27216842
+  uint32_t seed = Chromosome::num_families;
+  for (auto const &day : assignment)
+    seed ^= day + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+  return seed;
+}
+
+
 void Chromosome::Save(std::string const &path) const {
   std::ofstream file{path};
   file << "family_id,assigned_day\n";

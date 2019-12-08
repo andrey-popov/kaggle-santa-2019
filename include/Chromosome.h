@@ -12,6 +12,9 @@ struct Chromosome {
   /// Construct from a CSV file
   Chromosome(std::string const &path);
 
+  /// Compuates hash of this chromosome
+  uint32_t Hash() const;
+
   /// Save chromosome in a CSV file
   void Save(std::string const &path) const;
 
