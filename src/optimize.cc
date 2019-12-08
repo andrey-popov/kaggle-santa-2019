@@ -1,5 +1,8 @@
+#include <chrono>
 #include <cmath>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 #include <Chromosome.h>
@@ -22,6 +25,9 @@ int main(int argc, char const **argv) {
     std::cout << "Initial population saved to file \"" << path << "\".\n";
   }
 
+  int64_t const timestamp = std::chrono::duration_cast<std::chrono::seconds>(
+      std::chrono::system_clock::now().time_since_epoch()).count()
+      - 1575800000;
   for (int generation = 0; generation < 5'000; ++generation) {
     pool.Evolve();
     if (generation % 100 == 0) {
@@ -31,6 +37,10 @@ int main(int argc, char const **argv) {
           << "+" << std::lround(pool.GetLoss(0.25) - best_loss) << " (25%), "
           << "+" << std::lround(pool.GetLoss(0.5) - best_loss) << " (median), "
           << "+" << std::lround(pool.GetLoss(0.75) - best_loss) << " (75%)\n";
+      std::ostringstream path;
+      path << "snapshots/" << timestamp << "_"
+          << std::setfill('0') << std::setw(6) << generation << ".csv";
+      pool.Save(path.str());
     }
   }
 
