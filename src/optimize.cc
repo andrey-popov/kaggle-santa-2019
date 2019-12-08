@@ -31,7 +31,7 @@ int main(int argc, char const **argv) {
   std::cout << "Timestamp of this run: " << timestamp << std::endl;
   for (int generation = 0; generation <= 5'000; ++generation) {
     pool.Evolve();
-    if (generation % 100 == 0) {
+    if (generation % 1000 == 0) {
       double const best_loss = pool.GetLoss(0.);
       std::cout << "Losses after generation " << generation << ":\n  "
           << std::lround(best_loss) << " (best), "
@@ -40,7 +40,8 @@ int main(int argc, char const **argv) {
           << "+" << std::lround(pool.GetLoss(0.75) - best_loss) << " (75%)\n";
       std::ostringstream path;
       path << "snapshots/" << timestamp << "_"
-          << std::setfill('0') << std::setw(6) << generation << ".csv";
+          << std::setfill('0') << std::setw(6) << generation << "_"
+          << std::lround(best_loss) << ".csv";
       pool.Save(path.str());
     }
   }
