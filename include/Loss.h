@@ -17,8 +17,6 @@ class Loss {
   }
 
   double operator()(Chromosome const &chormosome) const;
-  std::array<double, Chromosome::num_days> ScanDays(
-      Chromosome const &chromosome, int family_id) const;
 
  private:
   struct Family {

@@ -9,8 +9,8 @@
 
 
 Pool::Pool(int capacity)
-    : capacity_{capacity}, num_breeding_(capacity * 0.7),
-      tournament_size_{2}, num_elites_{1},
+    : capacity_{capacity},
+      tournament_size_{2}, crossover_prob{1.},
       loss_{"family_data.csv"}, rng_engine_{717} {
 }
 
@@ -23,19 +23,36 @@ double Pool::GetLoss(double quantile) const {
 
 void Pool::Evolve() {
   std::vector<Chromosome> new_population;
-  new_population.reserve(capacity_);
+  new_population.reserve(2 * capacity_);
 
-  // Copy elites directly
-  for (int i = 0; i < num_elites_; ++i)
-    new_population.emplace_back(population_[i]);
+  // Generate children
+  while (int(new_population.size()) < capacity_) {
+    Chromosome const *parent1 = SelectParent();
+    Chromosome const *parent2 = SelectParent(parent1);
+    auto [child1, child2] = CrossOver(*parent1, *parent2);
 
-  auto const breeding_pool = SelectParents();
-  for (auto &child : GenerateChildren(breeding_pool))
-    new_population.emplace_back(child);
+    for (auto const &child : {child1, child2}) {
+      while (true) {
+        Chromosome mutant{Mutate(child)};
+        mutant.loss = loss_(mutant);
+        if (std::isfinite(mutant.loss)) {
+          new_population.emplace_back(mutant);
+          break;
+        }
+      }
+    }
+  }
 
-  std::sort(new_population.begin(), new_population.end(),
-            [](auto const &c1, auto const &c2){return c1.loss < c2.loss;});
-  population_ = new_population;
+  // Choose best phenotypes out of the union of the previous generation and the
+  // children (truncation replacement)
+  new_population.insert(new_population.end(),
+                        population_.begin(), population_.end());
+  std::partial_sort(
+      new_population.begin(), new_population.begin() + capacity_,
+      new_population.end(),
+      [](auto const &c1, auto const &c2){return c1.loss < c2.loss;});
+  for (int i = 0; i < capacity_; ++i)
+    population_[i] = new_population[i];
 }
 
 
@@ -123,38 +140,26 @@ void Pool::Save(std::string const &path) const {
 }
 
 
-Chromosome Pool::CrossOver(Chromosome const &parent1,
-                           Chromosome const &parent2) const {
-  Chromosome child;
-  std::uniform_int_distribution<> index_distr{0, Chromosome::num_families - 1};
-  int const cross_over_index = index_distr(rng_engine_);
-  for (int i = 0; i < cross_over_index; ++i)
-    child.assignment[i] = parent1.assignment[i];
-  for (int i = cross_over_index; i < Chromosome::num_families; ++i)
-    child.assignment[i] = parent2.assignment[i];
-  return child;
-}
-
-
-std::vector<Chromosome> Pool::GenerateChildren(
-    std::vector<Chromosome const *> const &breeding_pool) const {
-  std::vector<Chromosome> children;
-  children.reserve(capacity_ - num_elites_);
-  std::uniform_int_distribution<> index_distr{0, num_breeding_ - 1};
-
-  while (int(children.size()) < capacity_ - num_elites_) {
-    Chromosome const *parent1 = breeding_pool[index_distr(rng_engine_)];
-    Chromosome const *parent2 = parent1;
-    while (parent2 == parent1)
-      parent2 = breeding_pool[index_distr(rng_engine_)];
-
-    Chromosome child = Mutate(CrossOver(*parent1, *parent2));
-    child.loss = loss_(child);
-    if (std::isfinite(child.loss))
-      children.emplace_back(child);
+std::tuple<Chromosome, Chromosome> Pool::CrossOver(
+    Chromosome const &parent1, Chromosome const &parent2) const {
+  std::uniform_real_distribution<> unit_distr;
+  if (unit_distr(rng_engine_) > crossover_prob) {
+    // Return clones of the parents
+    return {parent1, parent2};
   }
 
-  return children;
+  Chromosome child1, child2;
+  std::uniform_int_distribution<> index_distr{0, Chromosome::num_families - 1};
+  int const crossover_index = index_distr(rng_engine_);
+  for (int i = 0; i < crossover_index; ++i) {
+    child1.assignment[i] = parent1.assignment[i];
+    child2.assignment[i] = parent2.assignment[i];
+  }
+  for (int i = crossover_index; i < Chromosome::num_families; ++i) {
+    child1.assignment[i] = parent2.assignment[i];
+    child2.assignment[i] = parent1.assignment[i];
+  }
+  return {child1, child2};
 }
 
 
@@ -204,21 +209,16 @@ Chromosome Pool::Mutate(Chromosome const &source) const {
 }
 
 
-std::vector<Chromosome const *> Pool::SelectParents() {
-  std::vector<Chromosome const *> breeding_pool;
-  breeding_pool.reserve(num_breeding_);
+Chromosome const *Pool::SelectParent(Chromosome const *skip) {
   std::uniform_int_distribution<> index_distr{0, capacity_ - 1};
-
-  while (int(breeding_pool.size()) < num_breeding_) {
-    std::set<int> candidate_indices;
-    while (int(candidate_indices.size()) < tournament_size_)
-      candidate_indices.insert(index_distr(rng_engine_));
-
-    int const winner_index = *std::min_element(
-        candidate_indices.begin(), candidate_indices.end(),
-        [&](int i, int j){return population_[i].loss < population_[j].loss;});
-    breeding_pool.emplace_back(&population_[winner_index]);
+  std::set<Chromosome const *> candidates;
+  while (int(candidates.size()) < tournament_size_) {
+    Chromosome const *c = &population_[index_distr(rng_engine_)];
+    if (c != skip)
+      candidates.insert(c);
   }
 
-  return breeding_pool;
+  return *std::min_element(
+      candidates.begin(), candidates.end(),
+      [](auto const &c1, auto const c2){return c1->loss < c2->loss;});
 }
