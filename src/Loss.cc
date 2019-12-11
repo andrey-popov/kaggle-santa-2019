@@ -71,6 +71,8 @@ Loss::Loss(std::string const &path) {
 
   if (families_.size() != Chromosome::num_families)
     throw std::runtime_error("Unexpected number of families found.");
+
+  BuildInverseMap();
 }
 
 
@@ -98,4 +100,14 @@ double Loss::operator()(Chromosome const &chromosome) const {
     preference_loss += family.PreferenceLoss(chromosome.assignment[family.id]);
 
   return accounting_loss + preference_loss;
+}
+
+
+void Loss::BuildInverseMap() {
+  for (auto const &family : families_)
+    for (int pref = 0; pref < 10; ++pref) {
+      int const day = family.preferences[pref];
+      day_pref_to_families_[day - 1][pref].emplace_back(family.id);
+      day_to_families_[day - 1].emplace_back(family.id);
+    }
 }

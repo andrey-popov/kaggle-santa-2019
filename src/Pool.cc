@@ -195,16 +195,18 @@ Chromosome Pool::Mutate(Chromosome const &source) const {
     return source;
 
   Chromosome mutated{source};
-  int const num_strategies = 4;
-  std::uniform_int_distribution<> strategy_distr{0, num_strategies - 1};
+  std::array<int, 2> enabled_strategies{0, 4};
+  std::uniform_int_distribution<> strategy_index_distr{
+      0, enabled_strategies.size()};
   std::uniform_int_distribution<> day_distr{1, Chromosome::num_days};
   std::uniform_int_distribution<> family_distr{0, Chromosome::num_families - 1};
+  std::uniform_int_distribution<> pref_distr{0, 9};
+  std::uniform_int_distribution<> generic_distr;
 
-  switch (strategy_distr(rng_engine_)) {
+  switch (enabled_strategies[strategy_index_distr(rng_engine_)]) {
     case 0: {
       // For one family, set the assigned day to one of its preference days
       int const f = family_distr(rng_engine_);
-      std::uniform_int_distribution<> pref_distr{0, 9};
       mutated.assignment[f] = loss_.GetPreferences(f)[pref_distr(rng_engine_)];
       break;
     }
@@ -228,6 +230,21 @@ Chromosome Pool::Mutate(Chromosome const &source) const {
       mutated.assignment[f1] = mutated.assignment[f2];
       mutated.assignment[f2] = mutated.assignment[f3];
       mutated.assignment[f3] = day;
+      break;
+    }
+    case 4: {
+      // For one family, change its assigned day to one of its preferences. Move
+      // another family to its old day, provided that this day is among the
+      // preference list of the second family.
+      int const f1 = family_distr(rng_engine_);
+      int const day = mutated.assignment[f1];
+      mutated.assignment[f1] = loss_.GetPreferences(f1)
+          [pref_distr(rng_engine_)];
+      auto const &families = loss_.GetFamiliesForDay(day, -1);
+      if (not families.empty()) {
+        int const f2 = families[generic_distr(rng_engine_) % families.size()];
+        mutated.assignment[f2] = day;
+      }
       break;
     }
   }
