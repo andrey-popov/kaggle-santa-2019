@@ -280,7 +280,8 @@ Chromosome Pool::Mutate(Chromosome const &source) const {
       0, enabled_strategies.size()};
   std::uniform_int_distribution<> day_distr{1, Chromosome::num_days};
   std::uniform_int_distribution<> family_distr{0, Chromosome::num_families - 1};
-  std::uniform_int_distribution<> pref_distr{0, 9};
+  int const max_pref = 4;
+  std::uniform_int_distribution<> pref_distr{0, max_pref};
   std::uniform_int_distribution<> generic_distr;
 
   switch (enabled_strategies[strategy_index_distr(rng_engine_)]) {
@@ -320,9 +321,17 @@ Chromosome Pool::Mutate(Chromosome const &source) const {
       int const day = mutated.assignment[f1];
       mutated.assignment[f1] = loss_.GetPreferences(f1)
           [pref_distr(rng_engine_)];
-      auto const &families = loss_.GetFamiliesForDay(day, -1);
-      if (not families.empty()) {
-        int const f2 = families[generic_distr(rng_engine_) % families.size()];
+      int n = 0;
+      for (int pref = 0; pref <= max_pref; ++pref)
+        n += loss_.GetFamiliesForDay(day, pref).size();
+      if (n > 0) {
+        int index = generic_distr(rng_engine_) % n;
+        int pref = 0;
+        while (index >= int(loss_.GetFamiliesForDay(day, pref).size())) {
+          index -= loss_.GetFamiliesForDay(day, pref).size();
+          ++pref;
+        }
+        int const f2 = loss_.GetFamiliesForDay(day, pref)[index];
         mutated.assignment[f2] = day;
       }
       break;
