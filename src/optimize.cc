@@ -64,16 +64,25 @@ int main(int argc, char const **argv) {
   int const num_generations = options_map["num"].as<int>();
   for (int generation = 0; generation <= num_generations; ++generation) {
     pool.Evolve();
-    if (generation % 1000 == 0) {
-      double const best_loss = pool.GetLoss(0.);
+    if (generation > 0 and generation % 1000 == 0) {
+      double best_loss = pool.GetLoss(0.);
       std::cout << "Losses after generation " << generation << ":\n  "
           << std::lround(best_loss) << " (best), "
           << "+" << std::lround(pool.GetLoss(0.25) - best_loss) << " (25%), "
           << "+" << std::lround(pool.GetLoss(0.5) - best_loss) << " (median), "
           << "+" << std::lround(pool.GetLoss(0.75) - best_loss) << " (75%)\n";
+      
       pool.Improve(500);
+      best_loss = pool.GetLoss(0.);
       std::cout << "Best loss after improvement: "
-         << std::lround(pool.GetLoss(0.)) << '\n';
+         << std::lround(best_loss) << '\n';
+      if (generation % 5000 == 0) {
+        pool.Improve(Chromosome::num_families);
+        best_loss = pool.GetLoss(0.);
+        std::cout << "Best loss after improvement for all families: "
+            << std::lround(best_loss) << '\n';
+      }
+
       std::ostringstream path;
       path << "snapshots/" << timestamp << "_"
           << std::setfill('0') << std::setw(6) << generation << "_"
