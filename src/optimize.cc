@@ -76,10 +76,16 @@ int main(int argc, char const **argv) {
       best_loss = pool.GetLoss(0.);
       std::cout << "Best loss after improvement: "
          << std::lround(best_loss) << '\n';
+      
       if (generation % 5000 == 0) {
         pool.Improve(Chromosome::num_families);
         best_loss = pool.GetLoss(0.);
         std::cout << "Best loss after improvement for all families: "
+            << std::lround(best_loss) << '\n';
+
+        pool.ImproveTwoForOne(10);
+        best_loss = pool.GetLoss(0.);
+        std::cout << "Best loss after two-for-one improvement: "
             << std::lround(best_loss) << '\n';
       }
 

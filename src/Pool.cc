@@ -65,32 +65,8 @@ double Pool::GetLoss(double quantile) const {
 
 void Pool::Improve(int num_top_cost) {
   auto assignment = population_[0].assignment;
+  auto const top_cost_families = FindCostlyFamilies(assignment, num_top_cost);
 
-  // Find few families with the largest preference costs. It's likely that some
-  // of them are driving the overall cost.
-  std::vector<std::pair<int, int64_t>> top_costs;
-  for (int f = 0; f < num_top_cost; ++f) {
-    int64_t const cost = loss_.GetFamilies()[f].PreferenceLoss(assignment[f]);
-    top_costs.emplace_back(f, cost);
-  }
-  std::sort(top_costs.begin(), top_costs.end(),
-            [](auto const &x, auto const &y){return x.second > y.second;});
-  
-  for (int f = num_top_cost; f < Chromosome::num_families; ++f) {
-    int64_t const cost = loss_.GetFamilies()[f].PreferenceLoss(assignment[f]);
-    if (cost > top_costs.back().second) {
-      top_costs.pop_back();
-      top_costs.emplace_back(f, cost);
-      std::sort(top_costs.begin(), top_costs.end(),
-                [](auto const &x, auto const &y){return x.second > y.second;});
-    }
-  }
-
-  std::vector<Loss::Family const *> top_cost_families;
-  for (auto const &p : top_costs)
-    top_cost_families.emplace_back(&loss_.GetFamilies()[p.first]);
-
-  
   for (auto costly_family : top_cost_families) {
     int const original_day = assignment[costly_family->id];
     int const original_pref_rank = std::find(
@@ -126,6 +102,50 @@ void Pool::Improve(int num_top_cost) {
           trial_assignment[costly_family->id] =
               costly_family->preferences[dest_rank];
           trial_assignment[f] = original_day;
+
+          double const loss = loss_(trial_assignment);
+          if (loss < best_loss) {
+            best_loss = loss;
+            assignment = trial_assignment;
+          }
+        }
+      }
+    }
+  }
+
+  population_[0].assignment = assignment;
+  population_[0].loss = loss_(assignment);
+}
+
+
+void Pool::ImproveTwoForOne(int num_top_cost) {
+  auto assignment = population_[0].assignment;
+  auto const top_cost_families = FindCostlyFamilies(assignment, num_top_cost);
+
+  for (auto costly_family : top_cost_families) {
+    int const original_day = assignment[costly_family->id];
+    int const original_pref_rank = std::find(
+        costly_family->preferences.begin(), costly_family->preferences.end(),
+        original_day) - costly_family->preferences.begin();
+    double best_loss = loss_(assignment);
+
+    // Find families that can be moved to original_day
+    std::vector<int> swap_families;
+    for (int r = 0; r <= original_pref_rank; ++r)
+      for (int f : loss_.GetFamiliesForDay(original_day, r))
+        swap_families.emplace_back(f);
+    
+    for (int dest_rank = 0; dest_rank < original_pref_rank; ++dest_rank) {
+      for (int i = 0; i < int(swap_families.size()) - 1; ++i) {
+        for (int j = i + 1; j < int(swap_families.size()); ++j) {
+          int const f1 = swap_families[i];
+          int const f2 = swap_families[j];
+
+          auto trial_assignment = assignment;
+          trial_assignment[costly_family->id] =
+              costly_family->preferences[dest_rank];
+          trial_assignment[f1] = original_day;
+          trial_assignment[f2] = original_day;
 
           double const loss = loss_(trial_assignment);
           if (loss < best_loss) {
@@ -266,6 +286,34 @@ std::tuple<Chromosome, Chromosome> Pool::CrossOver(
     }
   }
   return {child1, child2};
+}
+
+
+std::vector<Loss::Family const *> Pool::FindCostlyFamilies(
+    std::array<int, Chromosome::num_families> const &assignment, int n) const {
+  std::vector<std::pair<int, int64_t>> top_costs;
+  for (int f = 0; f < n; ++f) {
+    int64_t const cost = loss_.GetFamilies()[f].PreferenceLoss(assignment[f]);
+    top_costs.emplace_back(f, cost);
+  }
+  std::sort(top_costs.begin(), top_costs.end(),
+            [](auto const &x, auto const &y){return x.second > y.second;});
+  
+  for (int f = n; f < Chromosome::num_families; ++f) {
+    int64_t const cost = loss_.GetFamilies()[f].PreferenceLoss(assignment[f]);
+    if (cost > top_costs.back().second) {
+      top_costs.pop_back();
+      top_costs.emplace_back(f, cost);
+      std::sort(top_costs.begin(), top_costs.end(),
+                [](auto const &x, auto const &y){return x.second > y.second;});
+    }
+  }
+
+  std::vector<Loss::Family const *> top_cost_families;
+  for (auto const &p : top_costs)
+    top_cost_families.emplace_back(&loss_.GetFamilies()[p.first]);
+
+  return top_cost_families;
 }
 
 

@@ -24,9 +24,21 @@ class Pool {
     return population_;
   }
 
-  /// Rule-based improvement of the best solution
+  /**
+   * \brief Rule-based improvement of the best solution
+   *
+   * Try to move a costly family to a different day or replace it with another
+   * family.
+   */
   void Improve(int num_top_cost);
-  
+
+  /**
+   * \brief Rule-based improvement for the best solution
+   *
+   * Try to replace a costly family with two other families.
+   */
+  void ImproveTwoForOne(int num_top_cost);
+
   /// Loads population from a CSV file
   void Load(std::string const &path);
 
@@ -51,6 +63,9 @@ class Pool {
       Chromosome const &parent1, Chromosome const &parent2,
       int strategy = 1) const;
 
+  /// Find given number of families with largest preference cost
+  std::vector<Loss::Family const *> FindCostlyFamilies(
+      std::array<int, Chromosome::num_families> const &assignment, int n) const;
 
   Chromosome Mutate(Chromosome const &source) const;
 
