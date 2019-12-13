@@ -89,11 +89,13 @@ int main(int argc, char const **argv) {
             << std::lround(best_loss) << '\n';
       }
 
-      std::ostringstream path;
-      path << "snapshots/" << timestamp << "_"
-          << std::setfill('0') << std::setw(6) << generation << "_"
-          << std::lround(best_loss) << ".csv";
-      pool.Save(path.str());
+      if (generation == num_generations or generation % 25000 == 0) {
+        std::ostringstream path;
+        path << "snapshots/" << timestamp << "_"
+            << std::setfill('0') << std::setw(6) << generation << "_"
+            << std::lround(best_loss) << ".csv";
+        pool.Save(path.str());
+      }
     }
   }
 
