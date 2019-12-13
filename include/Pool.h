@@ -14,6 +14,9 @@ class Pool {
   Pool(int capacity, int tournament_size, double crossover_prob,
        double mutation_prob, double survivor_rank_scale);
 
+  /// Performs one generation
+  void Evolve();
+
   /// Returns loss at the given quantile of the population
   double GetLoss(double quantile) const;
 
@@ -21,9 +24,9 @@ class Pool {
     return population_;
   }
 
-  /// Performs one generation
-  void Evolve();
-
+  /// Rule-based improvement of the best solution
+  void Improve(int num_top_cost);
+  
   /// Loads population from a CSV file
   void Load(std::string const &path);
 
@@ -47,6 +50,7 @@ class Pool {
   std::tuple<Chromosome, Chromosome> CrossOver(
       Chromosome const &parent1, Chromosome const &parent2,
       int strategy = 1) const;
+
 
   Chromosome Mutate(Chromosome const &source) const;
 

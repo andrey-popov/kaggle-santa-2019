@@ -76,11 +76,12 @@ Loss::Loss(std::string const &path) {
 }
 
 
-double Loss::operator()(Chromosome const &chromosome) const {
+double Loss::operator()(
+    std::array<int, Chromosome::num_families> const &assignment) const {
   std::array<int, Chromosome::num_days> occupancy;
   std::fill(occupancy.begin(), occupancy.end(), 0);
   for (auto const &family : families_)
-    occupancy[chromosome.assignment[family.id] - 1] += family.size;
+    occupancy[assignment[family.id] - 1] += family.size;
 
   for (auto const &n : occupancy)
     if (n < 125 or n > 300)
@@ -97,7 +98,7 @@ double Loss::operator()(Chromosome const &chromosome) const {
 
   int64_t preference_loss = 0;
   for (auto const &family : families_)
-    preference_loss += family.PreferenceLoss(chromosome.assignment[family.id]);
+    preference_loss += family.PreferenceLoss(assignment[family.id]);
 
   return accounting_loss + preference_loss;
 }

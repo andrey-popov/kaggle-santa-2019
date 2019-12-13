@@ -10,22 +10,6 @@
 
 class Loss {
  public:
-  Loss(std::string const &path);
-
-  std::vector<int> const &GetFamiliesForDay(int day, int preference) const {
-    if (preference == -1)
-      return day_to_families_[day - 1];
-    else
-      return day_pref_to_families_[day - 1][preference];
-  }
-
-  std::array<int, 10> const &GetPreferences(int family) const {
-    return families_[family].preferences;
-  }
-
-  double operator()(Chromosome const &chormosome) const;
-
- private:
   struct Family {
     int64_t PreferenceLoss(int day) const;
 
@@ -39,6 +23,31 @@ class Loss {
     std::array<int, 10> preferences;
   };
 
+  Loss(std::string const &path);
+
+  std::vector<Family> const &GetFamilies() const {
+    return families_;
+  }
+
+  std::vector<int> const &GetFamiliesForDay(int day, int preference) const {
+    if (preference == -1)
+      return day_to_families_[day - 1];
+    else
+      return day_pref_to_families_[day - 1][preference];
+  }
+
+  std::array<int, 10> const &GetPreferences(int family) const {
+    return families_[family].preferences;
+  }
+
+  double operator()(Chromosome const &chromosome) const {
+    return operator()(chromosome.assignment);
+  }
+  
+  double operator()(
+      std::array<int, Chromosome::num_families> const &assignment) const;
+
+ private:
   void BuildInverseMap();
 
   std::vector<Family> families_;

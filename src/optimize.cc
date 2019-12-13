@@ -71,6 +71,9 @@ int main(int argc, char const **argv) {
           << "+" << std::lround(pool.GetLoss(0.25) - best_loss) << " (25%), "
           << "+" << std::lround(pool.GetLoss(0.5) - best_loss) << " (median), "
           << "+" << std::lround(pool.GetLoss(0.75) - best_loss) << " (75%)\n";
+      pool.Improve(500);
+      std::cout << "Best loss after improvement: "
+         << std::lround(pool.GetLoss(0.)) << '\n';
       std::ostringstream path;
       path << "snapshots/" << timestamp << "_"
           << std::setfill('0') << std::setw(6) << generation << "_"

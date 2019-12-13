@@ -6,6 +6,7 @@
 #include <set>
 #include <sstream>
 #include <stdexcept>
+#include <utility>
 
 
 Pool::Pool(int capacity, int tournament_size, double crossover_prob,
@@ -15,12 +16,6 @@ Pool::Pool(int capacity, int tournament_size, double crossover_prob,
       survivor_rank_scale_{survivor_rank_scale},
       loss_{"family_data.csv"}, rng_engine_{717} {
   PreselectSurvivors();
-}
-
-
-double Pool::GetLoss(double quantile) const {
-  int const i = std::lround(quantile * population_.size());
-  return population_.at(i).loss;
 }
 
 
@@ -59,6 +54,91 @@ void Pool::Evolve() {
             [](auto const &c1, auto const &c2){return c1.loss < c2.loss;});
   for (int i = 0; i < capacity_; ++i)
     population_[i] = new_population[survivor_ranks_[i]];
+}
+
+
+double Pool::GetLoss(double quantile) const {
+  int const i = std::lround(quantile * population_.size());
+  return population_.at(i).loss;
+}
+
+
+void Pool::Improve(int num_top_cost) {
+  auto assignment = population_[0].assignment;
+
+  // Find few families with the largest preference costs. It's likely that some
+  // of them are driving the overall cost.
+  std::vector<std::pair<int, int64_t>> top_costs;
+  for (int f = 0; f < num_top_cost; ++f) {
+    int64_t const cost = loss_.GetFamilies()[f].PreferenceLoss(assignment[f]);
+    top_costs.emplace_back(f, cost);
+  }
+  std::sort(top_costs.begin(), top_costs.end(),
+            [](auto const &x, auto const &y){return x.second > y.second;});
+  
+  for (int f = num_top_cost; f < Chromosome::num_families; ++f) {
+    int64_t const cost = loss_.GetFamilies()[f].PreferenceLoss(assignment[f]);
+    if (cost > top_costs.back().second) {
+      top_costs.pop_back();
+      top_costs.emplace_back(f, cost);
+      std::sort(top_costs.begin(), top_costs.end(),
+                [](auto const &x, auto const &y){return x.second > y.second;});
+    }
+  }
+
+  std::vector<Loss::Family const *> top_cost_families;
+  for (auto const &p : top_costs)
+    top_cost_families.emplace_back(&loss_.GetFamilies()[p.first]);
+
+  
+  for (auto costly_family : top_cost_families) {
+    int const original_day = assignment[costly_family->id];
+    int const original_pref_rank = std::find(
+        costly_family->preferences.begin(), costly_family->preferences.end(),
+        original_day) - costly_family->preferences.begin();
+
+    // Check if it helps to move this family to any of its preferred days
+    int best_day = -1;
+    double best_loss = population_[0].loss;
+    for (int rank = 0; rank < original_pref_rank; ++rank) {
+      int const day = costly_family->preferences[rank];
+      assignment[costly_family->id] = day;
+      double const loss = loss_(assignment);
+      if (loss < best_loss) {
+        best_loss = loss;
+        best_day = day;
+      }
+    }
+
+    // If the loss has been improved, accept the corresponding change
+    if (best_day != -1) {
+      assignment[costly_family->id] = best_day;
+      continue;
+    } else
+      assignment[costly_family->id] = original_day;
+
+    // Try moving this family to one of its preferred days and moving some other
+    // family to to its original day
+    for (int dest_rank = 0; dest_rank < original_pref_rank; ++dest_rank) {
+      for (int src_rank = 0; src_rank <= original_pref_rank; ++src_rank) {
+        for (int f : loss_.GetFamiliesForDay(original_day, src_rank)) {
+          auto trial_assignment = assignment;
+          trial_assignment[costly_family->id] =
+              costly_family->preferences[dest_rank];
+          trial_assignment[f] = original_day;
+
+          double const loss = loss_(trial_assignment);
+          if (loss < best_loss) {
+            best_loss = loss;
+            assignment = trial_assignment;
+          }
+        }
+      }
+    }
+  }
+
+  population_[0].assignment = assignment;
+  population_[0].loss = loss_(assignment);
 }
 
 
