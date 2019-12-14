@@ -28,7 +28,8 @@ int main(int argc, char const **argv) {
       ("mutation,m", po::value<double>()->default_value(1.),
        "Mutation probability.")
       ("survival,s", po::value<double>()->default_value(0.5),
-       "Relative exponential for surviving ranks.");
+       "Relative exponential for surviving ranks.")
+      ("improve,i", "Enable rule-based improvement");
   po::variables_map options_map;
   po::store(po::command_line_parser(argc, argv).options(options).run(),
             options_map);
@@ -72,21 +73,23 @@ int main(int argc, char const **argv) {
           << "+" << std::lround(pool.GetLoss(0.5) - best_loss) << " (median), "
           << "+" << std::lround(pool.GetLoss(0.75) - best_loss) << " (75%)\n";
       
-      pool.Improve(500);
-      best_loss = pool.GetLoss(0.);
-      std::cout << "Best loss after improvement: "
-         << std::lround(best_loss) << '\n';
-      
-      if (generation % 5000 == 0) {
-        pool.Improve(Chromosome::num_families);
+      if (options_map.count("improve")) {
+        pool.Improve(500);
         best_loss = pool.GetLoss(0.);
-        std::cout << "Best loss after improvement for all families: "
-            << std::lround(best_loss) << '\n';
+        std::cout << "Best loss after improvement: "
+           << std::lround(best_loss) << '\n';
 
-        pool.ImproveTwoForOne(10);
-        best_loss = pool.GetLoss(0.);
-        std::cout << "Best loss after two-for-one improvement: "
-            << std::lround(best_loss) << '\n';
+        if (generation % 5000 == 0) {
+          pool.Improve(Chromosome::num_families);
+          best_loss = pool.GetLoss(0.);
+          std::cout << "Best loss after improvement for all families: "
+              << std::lround(best_loss) << '\n';
+
+          pool.ImproveTwoForOne(10);
+          best_loss = pool.GetLoss(0.);
+          std::cout << "Best loss after two-for-one improvement: "
+              << std::lround(best_loss) << '\n';
+        }
       }
 
       if (generation == num_generations or generation % 25000 == 0) {
