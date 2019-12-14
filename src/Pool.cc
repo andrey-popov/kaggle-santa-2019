@@ -111,6 +111,25 @@ void Pool::Improve(int num_top_cost) {
         }
       }
     }
+
+    // Try moving this family to one of its preferred days and moving some other
+    // from that day elsewhere
+    for (int dest_rank = 0; dest_rank < original_pref_rank; ++dest_rank) {
+      int const day = costly_family->preferences[dest_rank];
+      for (int src_rank = 0; src_rank <= original_pref_rank; ++src_rank) {
+        for (int f : loss_.GetFamiliesForDay(day, src_rank)) {
+          auto trial_assignment = assignment;
+          trial_assignment[costly_family->id] = day;
+          trial_assignment[f] = loss_.GetFamilies()[f].preferences[src_rank];
+
+          double const loss = loss_(trial_assignment);
+          if (loss < best_loss) {
+            best_loss = loss;
+            assignment = trial_assignment;
+          }
+        }
+      }
+    }
   }
 
   population_[0].assignment = assignment;
@@ -323,7 +342,7 @@ Chromosome Pool::Mutate(Chromosome const &source) const {
     return source;
 
   Chromosome mutated{source};
-  std::array<int, 2> enabled_strategies{0, 4};
+  std::array<int, 3> enabled_strategies{0, 4, 5};
   std::uniform_int_distribution<> strategy_index_distr{
       0, enabled_strategies.size()};
   std::uniform_int_distribution<> day_distr{1, Chromosome::num_days};
@@ -369,6 +388,27 @@ Chromosome Pool::Mutate(Chromosome const &source) const {
       int const day = mutated.assignment[f1];
       mutated.assignment[f1] = loss_.GetPreferences(f1)
           [pref_distr(rng_engine_)];
+      int n = 0;
+      for (int pref = 0; pref <= max_pref; ++pref)
+        n += loss_.GetFamiliesForDay(day, pref).size();
+      if (n > 0) {
+        int index = generic_distr(rng_engine_) % n;
+        int pref = 0;
+        while (index >= int(loss_.GetFamiliesForDay(day, pref).size())) {
+          index -= loss_.GetFamiliesForDay(day, pref).size();
+          ++pref;
+        }
+        int const f2 = loss_.GetFamiliesForDay(day, pref)[index];
+        mutated.assignment[f2] = day;
+      }
+      break;
+    }
+    case 5: {
+      // Move a family to one of its preferred days. Move another family from
+      // that day elsewhere.
+      int const f1 = family_distr(rng_engine_);
+      int const day = loss_.GetPreferences(f1)[pref_distr(rng_engine_)];
+      mutated.assignment[f1] = day;
       int n = 0;
       for (int pref = 0; pref <= max_pref; ++pref)
         n += loss_.GetFamiliesForDay(day, pref).size();
