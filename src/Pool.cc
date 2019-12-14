@@ -63,8 +63,8 @@ double Pool::GetLoss(double quantile) const {
 }
 
 
-void Pool::Improve(int num_top_cost) {
-  auto assignment = population_[0].assignment;
+void Pool::Improve(int num_top_cost, int solution) {
+  auto assignment = population_[solution].assignment;
   auto const top_cost_families = FindCostlyFamilies(assignment, num_top_cost);
 
   for (auto costly_family : top_cost_families) {
@@ -75,7 +75,7 @@ void Pool::Improve(int num_top_cost) {
 
     // Check if it helps to move this family to any of its preferred days
     int best_day = -1;
-    double best_loss = population_[0].loss;
+    double best_loss = population_[solution].loss;
     for (int rank = 0; rank < original_pref_rank; ++rank) {
       int const day = costly_family->preferences[rank];
       assignment[costly_family->id] = day;
@@ -132,13 +132,13 @@ void Pool::Improve(int num_top_cost) {
     }
   }
 
-  population_[0].assignment = assignment;
-  population_[0].loss = loss_(assignment);
+  population_[solution].assignment = assignment;
+  population_[solution].loss = loss_(assignment);
 }
 
 
-void Pool::ImproveTwoForOne(int num_top_cost) {
-  auto assignment = population_[0].assignment;
+void Pool::ImproveTwoForOne(int num_top_cost, int solution) {
+  auto assignment = population_[solution].assignment;
   auto const top_cost_families = FindCostlyFamilies(assignment, num_top_cost);
 
   for (auto costly_family : top_cost_families) {
@@ -176,8 +176,8 @@ void Pool::ImproveTwoForOne(int num_top_cost) {
     }
   }
 
-  population_[0].assignment = assignment;
-  population_[0].loss = loss_(assignment);
+  population_[solution].assignment = assignment;
+  population_[solution].loss = loss_(assignment);
 }
 
 

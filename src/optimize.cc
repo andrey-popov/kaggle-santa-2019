@@ -2,6 +2,7 @@
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <random>
 #include <sstream>
 #include <string>
 
@@ -29,7 +30,8 @@ int main(int argc, char const **argv) {
        "Mutation probability.")
       ("survival,s", po::value<double>()->default_value(0.5),
        "Relative exponential for surviving ranks.")
-      ("improve,i", "Enable rule-based improvement");
+      ("improve,i", "Enable rule-based improvement")
+      ("improve-all", "Run rule-based improvement for all solutions");
   po::variables_map options_map;
   po::store(po::command_line_parser(argc, argv).options(options).run(),
             options_map);
@@ -38,6 +40,9 @@ int main(int argc, char const **argv) {
     std::cerr << options << std::endl;
     return EXIT_FAILURE;
   }
+
+  std::mt19937 rng_engine{6881};
+  std::uniform_int_distribution generic_distr;
 
   Pool pool{
       options_map["size"].as<int>(), options_map["tournament"].as<int>(),
@@ -58,11 +63,20 @@ int main(int argc, char const **argv) {
         << "\".\n";
   }
 
+  if (options_map.count("improve-all")) {
+    int const n = pool.GetPopulation().size();
+    for (int solution = 0; solution < n; ++solution)
+      pool.Improve(Chromosome::num_families, solution);
+    for (int solution = 0; solution < 10; ++solution)
+      pool.ImproveTwoForOne(10, solution);
+  }
+
   int64_t const timestamp = std::chrono::duration_cast<std::chrono::seconds>(
       std::chrono::system_clock::now().time_since_epoch()).count()
       - 1575800000;
   std::cout << "Timestamp of this run: " << timestamp << std::endl;
   int const num_generations = options_map["num"].as<int>();
+  auto best_solution_hash = pool.GetPopulation()[0].Hash();
   for (int generation = 0; generation <= num_generations; ++generation) {
     pool.Evolve();
     if (generation > 0 and generation % 1000 == 0) {
@@ -74,20 +88,32 @@ int main(int argc, char const **argv) {
           << "+" << std::lround(pool.GetLoss(0.75) - best_loss) << " (75%)\n";
       
       if (options_map.count("improve")) {
-        pool.Improve(500);
+        // If the best solution hasn't changed since the last time, there is no
+        // point in trying to improve it again. Try a different solution.
+        int solution_to_improve = 0;
+        auto const hash = pool.GetPopulation()[0].Hash();
+        if (hash == best_solution_hash) {
+          int const n = pool.GetPopulation().size();
+          solution_to_improve = 1 + generic_distr(rng_engine) % (n - 1);
+        }
+        else
+          best_solution_hash = hash;
+        std::cout << "Improving solution " << solution_to_improve << '\n';
+
+        pool.Improve(500, solution_to_improve);
         best_loss = pool.GetLoss(0.);
-        std::cout << "Best loss after improvement: "
+        std::cout << "  Loss after improvement: "
            << std::lround(best_loss) << '\n';
 
         if (generation % 5000 == 0) {
-          pool.Improve(Chromosome::num_families);
+          pool.Improve(Chromosome::num_families, solution_to_improve);
           best_loss = pool.GetLoss(0.);
-          std::cout << "Best loss after improvement for all families: "
+          std::cout << "  Loss after improvement for all families: "
               << std::lround(best_loss) << '\n';
 
-          pool.ImproveTwoForOne(10);
+          pool.ImproveTwoForOne(10, solution_to_improve);
           best_loss = pool.GetLoss(0.);
-          std::cout << "Best loss after two-for-one improvement: "
+          std::cout << "  Loss after two-for-one improvement: "
               << std::lround(best_loss) << '\n';
         }
       }

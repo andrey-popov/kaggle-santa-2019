@@ -25,19 +25,19 @@ class Pool {
   }
 
   /**
-   * \brief Rule-based improvement of the best solution
+   * \brief Rule-based improvement of a solution
    *
    * Try to move a costly family to a different day or replace it with another
    * family.
    */
-  void Improve(int num_top_cost);
+  void Improve(int num_top_cost, int solution = 0);
 
   /**
-   * \brief Rule-based improvement for the best solution
+   * \brief Rule-based improvement for a solution
    *
    * Try to replace a costly family with two other families.
    */
-  void ImproveTwoForOne(int num_top_cost);
+  void ImproveTwoForOne(int num_top_cost, int solution = 0);
 
   /// Loads population from a CSV file
   void Load(std::string const &path);
